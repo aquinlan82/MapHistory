@@ -6,6 +6,7 @@ import tkinter as tk
 import sys
 import os
 from zoom import *
+import helpers
 
 """
 Map History
@@ -18,23 +19,9 @@ Started May 2020
 rectangles = []   #all pixels drawn over map
 windows = True	#windows or linux os
 
-""" connects to SQL database """
-def getServerConnection():
-	driver = "{MySQL ODBC 8.0 Driver}"
-	server = "127.0.0.1"
-	database = "places"
-	username = "root"
-	password = "Password!"
-	if windows:
-		conn = pyodbc.connect("DSN=dsn;UID=root;PWD=Password!")
-	else:
-		conn = pyodbc.connect("Driver="+driver+";SERVER="+server+";DATABASE="+database+";USER="+username+";PASSWORD="+password+";")
-	return conn
-
-
 """ selects colors of database entries at a given place and time  """
 def getColor(year, place):
-	conn = getServerConnection()
+	conn = helpers.getServerConnection(windows)
 	cursor = conn.cursor()
 	string = "Select R,G,B from places.Locations Where place=\"" + place + "\" AND yearStart<"+year+" AND yearEnd>"+year
 	cursor.execute(string)
@@ -49,33 +36,11 @@ def getAllColors(year):
 	cursor.execute(string)
 	return cursor
 
-""" Finds image for the first year before the input year """
-def getImage(year):
-	global base
-	images = []
-	#collect all image files bigger than year
-	for root, dirs, files, in os.walk("images/validYears"):
-		for file in files:
-			if file.endswith(".png"):
-				path = file.split(".")[0]
-				try:
-					if int(path) <= year:
-						images.append(int(path))	
-				except:
-					pass
-	images.sort()
-
-	#select file
-	filename = base + "2020.png"
-	if len(images) > 0:
-		filename = base + str(images[-1]) + ".png"
-	img = Image.open(filename)
-	return img
 
 """ Change every pixel that is the given color to red on the image for that year """
 """Better Method? """
 def drawCountry(color, year):
-	img = getImage(year)
+	img = helpers.getImage(year, getBase())
 	pixels = img.load()
 	mapLen, mapHei = img.size
 	for y in range(mapHei):
@@ -158,6 +123,16 @@ def resetAndClean(checkPlace):
 		return True
 	return False
 
+""" Returns directory with images """
+def getBase():
+	base = os.getcwd()
+	if windows:
+		base = base + "\\images\\validYears\\"
+	else:
+		base = base + "/images/validYears/"
+	return base
+
+
 """ Main Method """
 curX = 40
 curY = 40
@@ -174,12 +149,7 @@ root.title("Map History")
 root.geometry(str(winLen)+"x"+str(winHei))
 
 #picture settings  
-global base
-base = os.getcwd()
-if windows:
-	base = base + "\\images\\validYears\\"
-else:
-	base = base + "/images/validYears/"
+base = getBase()
 img = base + "map.png"
 app = Zoom_Advanced(root, path=img)
 canvas = app.canvas   #canvas added at 0,0 with colSpan of 2
